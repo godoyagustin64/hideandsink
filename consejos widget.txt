@@ -1,0 +1,69 @@
+Para lograr que un botón de "Opciones" oculte los botones actuales y muestre unos nuevos en Unreal Engine usando C++, la mejor práctica es estructurar tu menú dentro de un UUserWidget y controlar la visibilidad de los contenedores de los botones (como un UVerticalBox o UWidgetSwitcher).La forma más limpia y escalable de hacerlo es agrupando los botones en contenedores y alternando su visibilidad (ESlateVisibility).Aquí tienes la guía paso a paso de cómo implementarlo:1. Crear la clase en C++ (MyMainMenuWidget.h)Primero, declara los contenedores de los botones y la función que se ejecutará cuando se pulse el botón de opciones. Usamos meta = (BindWidget) para que se vinculen automáticamente con el diseño que hagas en el editor de Unreal.cpp#pragma once
+
+#include "CoreMinimal.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/Button.h"
+#include "Components/VerticalBox.h"
+#include "MyMainMenuWidget.generated.h"
+
+UCLASS()
+class MYGAME_API UMyMainMenuWidget : public UUserWidget
+{
+	GENERATED_BODY()
+
+protected:
+	// Volveremos a vincular esta función nativa con el evento de inicialización
+	virtual bool Initialize() override;
+
+	// Contenedor del menú principal (ej. Jugar, Opciones, Salir)
+	UPROPERTY(meta = (BindWidget))
+	UVerticalBox* MainMenuContainer;
+
+	// Contenedor del menú de opciones (ej. Volver, Gráficos, Sonido)
+	UPROPERTY(meta = (BindWidget))
+	UVerticalBox* OptionsMenuContainer;
+
+	// El botón de opciones que activará el cambio
+	UPROPERTY(meta = (BindWidget))
+	UButton* OptionsButton;
+
+	// Función que se llamará al hacer clic en el botón
+	UFUNCTION()
+	void OnOptionsClicked();
+};
+Usa el código con precaución.2. Implementar la lógica en C++ (MyMainMenuWidget.cpp)En el archivo fuente, vinculamos el clic del botón con nuestra función y cambiamos las visibilidades usando ESlateVisibility::Collapsed (para ocultar y liberar espacio) y ESlateVisibility::Visible.cpp#include "MyMainMenuWidget.h"
+
+bool UMyMainMenuWidget::Initialize()
+{
+	if (!Super::Initialize())
+	{
+		return false;
+	}
+
+	// Verificar que el botón existe y vincular el evento Clicked
+	if (OptionsButton)
+	{
+		OptionsButton->OnClicked.AddDynamic(this, &UMyMainMenuWidget::OnOptionsClicked);
+	}
+
+	// Asegurarnos de que el menú de opciones empiece oculto por defecto
+	if (OptionsMenuContainer)
+	{
+		OptionsMenuContainer->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	return true;
+}
+
+void UMyMainMenuWidget::OnOptionsClicked()
+{
+	if (MainMenuContainer && OptionsMenuContainer)
+	{
+		// Oculta los botones anteriores ocupando 0 espacio en el layout
+		MainMenuContainer->SetVisibility(ESlateVisibility::Collapsed);
+
+		// Muestra los nuevos botones de opciones
+		OptionsMenuContainer->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+Usa el código con precaución.3. Configuración en el Editor de Unreal (UMG)Para que el código funcione, debes enlazarlo correctamente en tu Blueprint del Widget:Crea un Widget Blueprint basado en tu clase de C++ (MyMainMenuWidget).En la jerarquía del diseño de interfaz (Designer):Añade un Vertical Box y nómbralo exactamente MainMenuContainer. Mete dentro tus botones iniciales (Jugar, Opciones, Salir).Asegúrate de que el botón que abre las opciones se llame exactamente OptionsButton.Añade otro Vertical Box en el mismo lugar y nómbralo exactamente OptionsMenuContainer. Pon dentro tus nuevos botones (Brillo, Volumen, Atrás).Compila el Blueprint.💡 Consejo Pro: El uso de UWidgetSwitcherSi tu menú va a tener muchas pestañas (Inicio, Opciones, Créditos, Controles), en lugar de cambiar la visibilidad de cajas verticales de forma manual, utiliza un componente UWidgetSwitcher en tu diseño.En C++, puedes enlazarlo como UWidgetSwitcher* MenuSwitcher; y cambiar de menú simplemente usando:MenuSwitcher->SetActiveWidgetIndex(1); (donde cada índice es una pantalla de menú diferente). Es mucho más limpio si el menú crece en el futuro.

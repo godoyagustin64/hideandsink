@@ -41,6 +41,26 @@ protected:
 	void AlIniciarSesion(bool bFueExitoso);
 
 private:
+	
+	// Contenedor del menú principal (ej. Jugar, Opciones, Salir)
+	UPROPERTY(meta = (BindWidget))
+	UVerticalBox* MainMenuContainer;
+	
+	UPROPERTY(meta = (BindWidget))
+	class UButton* BotonJugar;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* BotonOpciones;
+	
+	UPROPERTY(meta = (BindWidget))
+	UButton* BotonSalir;
+
+	
+	
+	// Contenedor del menú de Jugar (Host, Search, Volver)
+	UPROPERTY(meta = (BindWidget))
+	UVerticalBox* JugarContainer;
+	
 	UPROPERTY(meta = (BindWidget))
 	class UButton* BotonHost;
 
@@ -52,12 +72,31 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 	class UEditableText* TextoNombreHost;
+	
+	
+	
+	// Contenedor del menú de opciones (Sonido, Idioma, Volver)
+	UPROPERTY(meta = (BindWidget))
+	UVerticalBox* OptionsMenuContainer;
+	
+	// Contenedor del menú de opciones (Master, SFX, Musica, Volver)
+	UPROPERTY(meta = (BindWidget))
+	UVerticalBox* SoundOptionsMenuContainer;
+	
+	
+	
 
 	UFUNCTION()
 	void BotonHostClickeado();
 
 	UFUNCTION()
 	void BotonUnirseClickeado();
+	
+	UFUNCTION()
+	void BotonOpcionesClickeado();
+	
+	UFUNCTION()
+	void BotonSalirClickeado();
 
 	void DesmontarMenu();
 

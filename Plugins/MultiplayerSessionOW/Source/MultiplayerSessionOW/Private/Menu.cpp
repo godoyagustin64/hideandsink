@@ -9,6 +9,8 @@
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystem.h"
 #include "WidgetSessionSerch.h"
+#include "Interfaces/OnlineGameMatchesInterface.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 void UMenu::ConfigurarMenu(int32 NumeroConexionesPublicasParam, FString TipoDePartidaParam, FString RutaLobbyParam)
 {
@@ -58,6 +60,14 @@ bool UMenu::Initialize()
 	if (BotonUnirse)
 	{
 		BotonUnirse->OnClicked.AddDynamic(this, &ThisClass::BotonUnirseClickeado);
+	}
+	if (BotonOpciones)
+	{
+		BotonOpciones->OnClicked.AddDynamic(this, &ThisClass::BotonOpcionesClickeado);
+	}
+	if (BotonSalir)
+	{
+		BotonSalir->OnClicked.AddDynamic(this, &ThisClass::BotonSalirClickeado);
 	}
 	return true;
 }
@@ -233,6 +243,26 @@ void UMenu::BotonUnirseClickeado()
 	if (SubsistemaSesiones)
 	{
 		SubsistemaSesiones->BuscarSesiones(10000);
+	}
+}
+
+void UMenu::BotonOpcionesClickeado()
+{
+}
+
+void UMenu::BotonSalirClickeado()
+{
+	// Obtiene el mundo actual
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		// Llama a la función para salir del juego
+		UKismetSystemLibrary::QuitGame(
+			World, 
+			World->GetFirstPlayerController(), // El PlayerController actual
+			EQuitPreference::Quit, // Opción Quit para cerrar por completo (o Background para minimizar)
+			false // Si debe ignorar las restricciones de la plataforma
+		);
 	}
 }
 
