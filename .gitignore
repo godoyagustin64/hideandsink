@@ -1,0 +1,15 @@
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vs/
+.idea/
+.vscode/
+*.sln
+*.pdb
+*.obj
+*.pch
+*.bin
+# Esto asegura que no se suban los archivos pesados dentro de tus Plugins
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
