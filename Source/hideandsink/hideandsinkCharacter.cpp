@@ -9,11 +9,22 @@
 #include "GameFramework/Controller.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "InputActionValue.h"
 #include "hideandsink.h"
+#include "TransformableProp.h"
+#include "Components/StaticMeshComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Engine/World.h"
+#include "Blueprint/UserWidget.h"
+#include "GameFramework/PlayerController.h"
+#include "InputActionValue.h"
+
+
+
 
 AhideandsinkCharacter::AhideandsinkCharacter()
 {
+	PrimaryActorTick.bCanEverTick = true;
+	
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 		
@@ -48,6 +59,11 @@ AhideandsinkCharacter::AhideandsinkCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	
+	DisguiseMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DisguiseMesh"));
+	DisguiseMesh->SetupAttachment(RootComponent);
+	DisguiseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	DisguiseMesh->SetVisibility(false);
 }
 
 void AhideandsinkCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -65,6 +81,9 @@ void AhideandsinkCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AhideandsinkCharacter::Look);
+		
+		// Transform
+		EnhancedInputComponent->BindAction(TransformAction, ETriggerEvent::Started, this, &AhideandsinkCharacter::TryTransform);
 	}
 	else
 	{
@@ -130,4 +149,133 @@ void AhideandsinkCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
+}
+
+
+ATransformableProp* AhideandsinkCharacter::FindTransformableProp() const
+{
+	if (!FollowCamera || !GetWorld())
+	{
+		return nullptr;
+	}
+
+	const FVector Start = FollowCamera->GetComponentLocation();
+	const FVector End = Start + FollowCamera->GetForwardVector() * 1000.0f;
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	FHitResult Hit;
+	if (!GetWorld()->LineTraceSingleByChannel(
+		Hit, Start, End, ECC_Visibility, QueryParams))
+	{
+		return nullptr;
+	}
+
+	ATransformableProp* HitProp = Cast<ATransformableProp>(Hit.GetActor());
+	if (!HitProp)
+	{
+		return nullptr;
+	}
+
+	if (FVector::Dist(GetActorLocation(), Hit.ImpactPoint) > TransformRange)
+	{
+		return nullptr;
+	}
+
+	return HitProp;
+}
+
+void AhideandsinkCharacter::TryTransform()
+{
+	ATransformableProp* Prop = FindTransformableProp();
+	if (!Prop || !DisguiseMesh)
+	{
+		return;
+	}
+
+	UStaticMeshComponent* SourceMesh = Prop->GetPropMesh();
+	if (!SourceMesh || !SourceMesh->GetStaticMesh())
+	{
+		return;
+	}
+
+	// Copiamos la apariencia; el prop original sigue en el mapa.
+	DisguiseMesh->SetStaticMesh(SourceMesh->GetStaticMesh());
+	DisguiseMesh->SetRelativeScale3D(SourceMesh->GetComponentScale());
+
+	for (int32 Index = 0; Index < SourceMesh->GetNumMaterials(); ++Index)
+	{
+		DisguiseMesh->SetMaterial(Index, SourceMesh->GetMaterial(Index));
+	}
+
+	// Ubicamos la malla cerca del piso, tomando como referencia la cápsula.
+	DisguiseMesh->SetRelativeLocation(
+		FVector(0.0f, 0.0f, -GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight())
+	);
+
+	DisguiseMesh->SetVisibility(true);
+	GetMesh()->SetVisibility(false);
+}
+
+
+void AhideandsinkCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	// El resaltado es una ayuda visual para el jugador que controla este pulpo.
+	if (IsLocallyControlled())
+	{
+		UpdateTargetHighlight();
+	}
+}
+
+void AhideandsinkCharacter::UpdateTargetHighlight()
+{
+	ATransformableProp* NewTarget = FindTransformableProp();
+
+	if (HighlightedProp.Get() == NewTarget)
+	{
+		return;
+	}
+
+	if (ATransformableProp* PreviousProp = HighlightedProp.Get())
+	{
+		if (UStaticMeshComponent* PropMesh = PreviousProp->GetPropMesh())
+		{
+			PropMesh->SetRenderCustomDepth(false);
+		}
+	}
+
+	HighlightedProp = NewTarget;
+
+	if (NewTarget)
+	{
+		if (UStaticMeshComponent* PropMesh = NewTarget->GetPropMesh())
+		{
+			PropMesh->SetRenderCustomDepth(true);
+		}
+	}
+}
+
+void AhideandsinkCharacter::PawnClientRestart()
+{
+	Super::PawnClientRestart();
+
+	APlayerController* LocalPC = Cast<APlayerController>(GetController());
+	if (!LocalPC || !LocalPC->IsLocalController() ||
+		!CrosshairWidgetClass || CrosshairWidget)
+	{
+		return;
+	}
+
+	CrosshairWidget = CreateWidget<UUserWidget>(
+		LocalPC,
+		CrosshairWidgetClass
+	);
+
+	if (CrosshairWidget)
+	{
+		CrosshairWidget->AddToViewport();
+	}
 }

@@ -43,8 +43,6 @@ protected:
 private:
 	
 	// Contenedor del menú principal (ej. Jugar, Opciones, Salir)
-	UPROPERTY(meta = (BindWidget))
-	UVerticalBox* MainMenuContainer;
 	
 	UPROPERTY(meta = (BindWidget))
 	class UButton* BotonJugar;
@@ -58,8 +56,6 @@ private:
 	
 	
 	// Contenedor del menú de Jugar (Host, Search, Volver)
-	UPROPERTY(meta = (BindWidget))
-	UVerticalBox* JugarContainer;
 	
 	UPROPERTY(meta = (BindWidget))
 	class UButton* BotonHost;
@@ -72,17 +68,6 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 	class UEditableText* TextoNombreHost;
-	
-	
-	
-	// Contenedor del menú de opciones (Sonido, Idioma, Volver)
-	UPROPERTY(meta = (BindWidget))
-	UVerticalBox* OptionsMenuContainer;
-	
-	// Contenedor del menú de opciones (Master, SFX, Musica, Volver)
-	UPROPERTY(meta = (BindWidget))
-	UVerticalBox* SoundOptionsMenuContainer;
-	
 	
 	
 

@@ -8,8 +8,11 @@
 #include "hideandsinkCharacter.generated.h"
 
 class USpringArmComponent;
+class UUserWidget;
 class UCameraComponent;
 class UInputAction;
+class ATransformableProp;
+class UStaticMeshComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -31,6 +34,11 @@ class AhideandsinkCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
 	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Transformacion",
+	meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStaticMeshComponent> DisguiseMesh;
+	
+	
 protected:
 
 	/** Jump Input Action */
@@ -48,24 +56,43 @@ protected:
 	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
+	
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* TransformAction;
+
+	UPROPERTY(EditAnywhere, Category = "Transformacion", meta = (ClampMin = "1.0"))
+	float TransformRange = 250.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Interfaz")
+	TSubclassOf<UUserWidget> CrosshairWidgetClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> CrosshairWidget;
 
 public:
 
 	/** Constructor */
 	AhideandsinkCharacter();	
+	
+	virtual void Tick(float DeltaSeconds) override;
+	
+	virtual void PawnClientRestart() override;
 
 protected:
 
 	/** Initialize input action bindings */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-protected:
-
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
+	
+	void UpdateTargetHighlight();
+
+	TWeakObjectPtr<ATransformableProp> HighlightedProp;
+	
 
 public:
 
@@ -84,6 +111,11 @@ public:
 	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
+	
+	UFUNCTION(BlueprintCallable, Category="Input")
+	void TryTransform();
+	
+	ATransformableProp* FindTransformableProp() const;
 
 public:
 
