@@ -16,6 +16,7 @@
 #include "Engine/World.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
+#include "Net/UnrealNetwork.h"
 #include "InputActionValue.h"
 
 
@@ -23,6 +24,7 @@
 
 AhideandsinkCharacter::AhideandsinkCharacter()
 {
+	bReplicates = true;
 	PrimaryActorTick.bCanEverTick = true;
 	
 	// Set size for collision capsule
@@ -84,7 +86,14 @@ void AhideandsinkCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 		
 		// Transform
 		EnhancedInputComponent->BindAction(TransformAction, ETriggerEvent::Started, this, &AhideandsinkCharacter::TryTransform);
+		if (RotatePropAction)
+		{	
+			EnhancedInputComponent->BindAction(RotatePropAction, ETriggerEvent::Started,this, &AhideandsinkCharacter::StartRotatingProp);
+			EnhancedInputComponent->BindAction(RotatePropAction, ETriggerEvent::Completed,this, &AhideandsinkCharacter::StopRotatingProp);
+			EnhancedInputComponent->BindAction(RotatePropAction, ETriggerEvent::Canceled,this, &AhideandsinkCharacter::StopRotatingProp);
+		}
 	}
+	
 	else
 	{
 		UE_LOG(Loghideandsink, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
@@ -93,10 +102,34 @@ void AhideandsinkCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 void AhideandsinkCharacter::Move(const FInputActionValue& Value)
 {
-	// input is a Vector2D
-	FVector2D MovementVector = Value.Get<FVector2D>();
+	const FVector2D MovementVector = Value.Get<FVector2D>();
 
-	// route the input
+	if (bRotatePropHeld && DisguiseProp && DisguiseMesh)
+	{
+		const float Step = DisguiseRotationSpeed * GetWorld()->GetDeltaSeconds();
+
+		FRotator NewRotation = DisguiseRotation;
+
+		NewRotation.Yaw = FRotator::NormalizeAxis(
+			NewRotation.Yaw + MovementVector.X * Step
+		);
+
+		NewRotation.Pitch = FMath::Clamp(
+			NewRotation.Pitch - MovementVector.Y * Step,
+			-60.0f,
+			60.0f
+		);
+
+		NewRotation.Roll = 0.0f;
+
+		// Este es ahora el ángulo que controla el cliente.
+		DisguiseRotation = NewRotation;
+		DisguiseMesh->SetRelativeRotation(DisguiseRotation);
+
+		ServerSetDisguiseRotation(DisguiseRotation);
+		return;
+	}
+
 	DoMove(MovementVector.X, MovementVector.Y);
 }
 
@@ -151,6 +184,7 @@ void AhideandsinkCharacter::DoJumpEnd()
 	StopJumping();
 }
 
+//TRACE PARA HIGHLIGHT Y TRANSFORM
 
 ATransformableProp* AhideandsinkCharacter::FindTransformableProp() const
 {
@@ -186,37 +220,22 @@ ATransformableProp* AhideandsinkCharacter::FindTransformableProp() const
 	return HitProp;
 }
 
+//TRANSFORM
+
 void AhideandsinkCharacter::TryTransform()
 {
-	ATransformableProp* Prop = FindTransformableProp();
-	if (!Prop || !DisguiseMesh)
+	if (!IsLocallyControlled())
 	{
 		return;
 	}
 
-	UStaticMeshComponent* SourceMesh = Prop->GetPropMesh();
-	if (!SourceMesh || !SourceMesh->GetStaticMesh())
+	ATransformableProp* RequestedProp = FindTransformableProp();
+	if (RequestedProp)
 	{
-		return;
+		ServerTryTransform(RequestedProp);
 	}
-
-	// Copiamos la apariencia; el prop original sigue en el mapa.
-	DisguiseMesh->SetStaticMesh(SourceMesh->GetStaticMesh());
-	DisguiseMesh->SetRelativeScale3D(SourceMesh->GetComponentScale());
-
-	for (int32 Index = 0; Index < SourceMesh->GetNumMaterials(); ++Index)
-	{
-		DisguiseMesh->SetMaterial(Index, SourceMesh->GetMaterial(Index));
-	}
-
-	// Ubicamos la malla cerca del piso, tomando como referencia la cápsula.
-	DisguiseMesh->SetRelativeLocation(
-		FVector(0.0f, 0.0f, -GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight())
-	);
-
-	DisguiseMesh->SetVisibility(true);
-	GetMesh()->SetVisibility(false);
 }
+
 
 
 void AhideandsinkCharacter::Tick(float DeltaSeconds)
@@ -229,6 +248,8 @@ void AhideandsinkCharacter::Tick(float DeltaSeconds)
 		UpdateTargetHighlight();
 	}
 }
+
+// BORDE RESALTADO
 
 void AhideandsinkCharacter::UpdateTargetHighlight()
 {
@@ -258,6 +279,8 @@ void AhideandsinkCharacter::UpdateTargetHighlight()
 	}
 }
 
+// MIRA EN EL CENTRO
+
 void AhideandsinkCharacter::PawnClientRestart()
 {
 	Super::PawnClientRestart();
@@ -277,5 +300,150 @@ void AhideandsinkCharacter::PawnClientRestart()
 	if (CrosshairWidget)
 	{
 		CrosshairWidget->AddToViewport();
+	}
+}
+
+
+
+void AhideandsinkCharacter::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps
+) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(AhideandsinkCharacter, DisguiseProp);
+	DOREPLIFETIME_CONDITION(AhideandsinkCharacter, DisguiseRotation, COND_SkipOwner);
+}
+
+
+// TRANSFORM EN SERVER
+
+void AhideandsinkCharacter::ServerTryTransform_Implementation(
+	ATransformableProp* RequestedProp
+)
+{
+	if (!IsValid(RequestedProp) || RequestedProp->GetWorld() != GetWorld())
+	{
+		return;
+	}
+
+	UStaticMeshComponent* SourceMesh = RequestedProp->GetPropMesh();
+	if (!SourceMesh || !SourceMesh->GetStaticMesh())
+	{
+		return;
+	}
+
+	const FVector ClosestPoint =
+		SourceMesh->Bounds.GetBox().GetClosestPointTo(GetActorLocation());
+
+	// margen por la diferencia temporal entre cliente y servidor
+	constexpr float NetworkTolerance = 40.0f;
+	const float AllowedRange = TransformRange + NetworkTolerance;
+
+	if (FVector::DistSquared(GetActorLocation(), ClosestPoint)
+		> FMath::Square(AllowedRange))
+	{
+		return;
+	}
+
+	DisguiseProp = RequestedProp;
+	ApplyDisguise();
+}
+
+void AhideandsinkCharacter::OnRep_DisguiseProp()
+{
+    ApplyDisguise();
+}
+
+//FUNCION APLICAR MALLA
+
+void AhideandsinkCharacter::ApplyDisguise()
+{
+    if (!DisguiseMesh)
+    {
+        return;
+    }
+
+    UStaticMeshComponent* SourceMesh =
+        IsValid(DisguiseProp) ? DisguiseProp->GetPropMesh() : nullptr;
+
+    if (!SourceMesh || !SourceMesh->GetStaticMesh())
+    {
+        DisguiseMesh->SetVisibility(false);
+        GetMesh()->SetVisibility(true);
+        return;
+    }
+
+    DisguiseMesh->SetStaticMesh(SourceMesh->GetStaticMesh());
+    DisguiseMesh->SetRelativeScale3D(SourceMesh->GetComponentScale());
+
+    for (int32 Index = 0; Index < SourceMesh->GetNumMaterials(); ++Index)
+    {
+        DisguiseMesh->SetMaterial(Index, SourceMesh->GetMaterial(Index));
+    }
+
+    DisguiseMesh->SetRelativeLocation(
+        FVector(
+            0.0f,
+            0.0f,
+            -GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()
+        )
+    );
+
+    DisguiseMesh->SetVisibility(true);
+	DisguiseMesh->SetRelativeRotation(DisguiseRotation);
+    GetMesh()->SetVisibility(false);
+}
+
+//FUNCION ROTAR
+
+void AhideandsinkCharacter::StartRotatingProp()
+{
+	if (DisguiseProp)
+	{
+		bRotatePropHeld = true;
+	}
+}
+
+void AhideandsinkCharacter::StopRotatingProp()
+{
+	if (bRotatePropHeld && DisguiseProp && DisguiseMesh)
+	{
+		ServerFinishDisguiseRotation(DisguiseRotation);
+	}
+
+	bRotatePropHeld = false;
+}
+
+void AhideandsinkCharacter::ServerSetDisguiseRotation_Implementation(
+	FRotator NewRotation
+)
+{
+	if (!DisguiseProp || NewRotation.ContainsNaN())
+	{
+		return;
+	}
+
+	NewRotation.Pitch = FRotator::NormalizeAxis(NewRotation.Pitch);
+	NewRotation.Yaw = FRotator::NormalizeAxis(NewRotation.Yaw);
+	NewRotation.Roll = 0.0f;
+
+	DisguiseRotation = NewRotation;
+	DisguiseMesh->SetRelativeRotation(DisguiseRotation);
+}
+
+void AhideandsinkCharacter::ServerFinishDisguiseRotation_Implementation(
+	FRotator FinalRotation
+)
+{
+	// Aplicamos el mismo control que en las actualizaciones del giro.
+	ServerSetDisguiseRotation_Implementation(FinalRotation);
+}
+
+void AhideandsinkCharacter::OnRep_DisguiseRotation()
+{
+	if (DisguiseMesh)
+	{
+		DisguiseMesh->SetRelativeRotation(DisguiseRotation);
 	}
 }

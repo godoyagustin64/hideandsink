@@ -11,5 +11,6 @@ ATransformableProp::ATransformableProp()
 	PropMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PropMesh"));
 	RootComponent = PropMesh;
 	PropMesh->SetCollisionProfileName(TEXT("BlockAll"));
+	bReplicates = true;
 }
 

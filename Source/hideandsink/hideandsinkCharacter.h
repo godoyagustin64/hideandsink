@@ -63,6 +63,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Transformacion", meta = (ClampMin = "1.0"))
 	float TransformRange = 250.0f;
 	
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* RotatePropAction;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Interfaz")
 	TSubclassOf<UUserWidget> CrosshairWidgetClass;
 
@@ -77,6 +80,8 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	
 	virtual void PawnClientRestart() override;
+	
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 
@@ -89,9 +94,29 @@ protected:
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 	
+	//BORDE RESALTADO
 	void UpdateTargetHighlight();
-
 	TWeakObjectPtr<ATransformableProp> HighlightedProp;
+	
+	//ROTACION
+	bool bRotatePropHeld = false;
+	void StartRotatingProp();
+	void StopRotatingProp();
+	
+	UPROPERTY(EditAnywhere, Category = "Transformacion")
+	float DisguiseRotationSpeed = 90.0f; // Grados por segundo
+
+	UPROPERTY(ReplicatedUsing = OnRep_DisguiseRotation)
+	FRotator DisguiseRotation = FRotator::ZeroRotator;
+
+	UFUNCTION()
+	void OnRep_DisguiseRotation();
+
+	UFUNCTION(Server, Unreliable)
+	void ServerSetDisguiseRotation(FRotator NewRotation);
+
+	UFUNCTION(Server, Reliable)
+	void ServerFinishDisguiseRotation(FRotator FinalRotation);
 	
 
 public:
@@ -116,6 +141,23 @@ public:
 	void TryTransform();
 	
 	ATransformableProp* FindTransformableProp() const;
+	
+	
+	// FUNCIONES PARA REPLICAR EN SERVER 
+	
+	// El cliente solicita copiar este prop. El servidor decide si es válido.
+	UFUNCTION(Server, Reliable)
+	void ServerTryTransform(ATransformableProp* RequestedProp);
+
+	// Se ejecuta en los clientes cuando cambia el prop copiado.
+	UFUNCTION()
+	void OnRep_DisguiseProp();
+
+	// Actualiza las mallas; se llama explícitamente también en el servidor.
+	void ApplyDisguise();
+
+	UPROPERTY(ReplicatedUsing = OnRep_DisguiseProp)
+	TObjectPtr<ATransformableProp> DisguiseProp;
 
 public:
 
