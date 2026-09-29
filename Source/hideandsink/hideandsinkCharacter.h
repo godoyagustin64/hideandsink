@@ -59,6 +59,9 @@ protected:
 	
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* TransformAction;
+	
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* ReturnToOctopusAction;
 
 	UPROPERTY(EditAnywhere, Category = "Transformacion", meta = (ClampMin = "1.0"))
 	float TransformRange = 250.0f;
@@ -117,6 +120,11 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerFinishDisguiseRotation(FRotator FinalRotation);
+	
+	void TryReturnToOctopus();
+	
+	UFUNCTION(Server, Reliable)
+	void ServerReturnToOctopus();
 	
 
 public:

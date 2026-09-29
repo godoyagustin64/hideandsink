@@ -92,6 +92,10 @@ void AhideandsinkCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 			EnhancedInputComponent->BindAction(RotatePropAction, ETriggerEvent::Completed,this, &AhideandsinkCharacter::StopRotatingProp);
 			EnhancedInputComponent->BindAction(RotatePropAction, ETriggerEvent::Canceled,this, &AhideandsinkCharacter::StopRotatingProp);
 		}
+		if (ReturnToOctopusAction)
+		{
+			EnhancedInputComponent->BindAction(ReturnToOctopusAction, ETriggerEvent::Started,this, &AhideandsinkCharacter::TryReturnToOctopus);
+		}
 	}
 	
 	else
@@ -345,14 +349,21 @@ void AhideandsinkCharacter::ServerTryTransform_Implementation(
 	{
 		return;
 	}
-
+	
+	DisguiseRotation = FRotator::ZeroRotator;
 	DisguiseProp = RequestedProp;
 	ApplyDisguise();
 }
 
 void AhideandsinkCharacter::OnRep_DisguiseProp()
 {
-    ApplyDisguise();
+	// El dueño no recibe DisguiseRotation porque usamos COND_SkipOwner.
+	if (IsLocallyControlled())
+	{
+		DisguiseRotation = FRotator::ZeroRotator;
+	}
+
+	ApplyDisguise();
 }
 
 //FUNCION APLICAR MALLA
@@ -446,4 +457,28 @@ void AhideandsinkCharacter::OnRep_DisguiseRotation()
 	{
 		DisguiseMesh->SetRelativeRotation(DisguiseRotation);
 	}
+}
+
+void AhideandsinkCharacter::TryReturnToOctopus()
+{
+	if (!IsLocallyControlled() || !DisguiseProp)
+	{
+		return;
+	}
+
+	// Termina el modo de rotación antes de quitar el disfraz.
+	StopRotatingProp();
+
+	ServerReturnToOctopus();
+}
+
+void AhideandsinkCharacter::ServerReturnToOctopus_Implementation()
+{
+	if (!DisguiseProp)
+	{
+		return;
+	}
+
+	DisguiseProp = nullptr;
+	ApplyDisguise();
 }
