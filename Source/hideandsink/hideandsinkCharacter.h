@@ -40,6 +40,8 @@ class AhideandsinkCharacter : public ACharacter
 	
 	
 protected:
+	
+	virtual void BeginPlay() override;
 
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
@@ -74,6 +76,13 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> CrosshairWidget;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movimiento")
+	float OctopusWalkSpeed = 700.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movimiento")
+	float PropWalkSpeed = 350.0f;
+
 
 public:
 

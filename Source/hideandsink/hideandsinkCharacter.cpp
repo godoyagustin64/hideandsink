@@ -188,6 +188,14 @@ void AhideandsinkCharacter::DoJumpEnd()
 	StopJumping();
 }
 
+void AhideandsinkCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	GetCharacterMovement()->MaxWalkSpeed = OctopusWalkSpeed;
+}
+
+
 //TRACE PARA HIGHLIGHT Y TRANSFORM
 
 ATransformableProp* AhideandsinkCharacter::FindTransformableProp() const
@@ -225,6 +233,7 @@ ATransformableProp* AhideandsinkCharacter::FindTransformableProp() const
 }
 
 //TRANSFORM
+
 
 void AhideandsinkCharacter::TryTransform()
 {
@@ -370,6 +379,8 @@ void AhideandsinkCharacter::OnRep_DisguiseProp()
 
 void AhideandsinkCharacter::ApplyDisguise()
 {
+	GetCharacterMovement()->MaxWalkSpeed =
+	IsValid(DisguiseProp) ? PropWalkSpeed : OctopusWalkSpeed;
     if (!DisguiseMesh)
     {
         return;
