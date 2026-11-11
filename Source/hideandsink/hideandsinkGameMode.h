@@ -21,15 +21,17 @@ public:
     
     virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 
-    /*
-     * NUEVA RONDA
-     */
+    // NUEVA RONDA
     UFUNCTION(BlueprintCallable, Category = "Hide And Sink|Round")
     void StartRound();
 
 
     UFUNCTION(BlueprintCallable, Category = "Hide And Sink|Round")
     void RegisterOctopusCaught(AHISPlayerState* HunterPlayerState, AHISPlayerState* OctopusPlayerState);
+    
+    virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+    
+    virtual void Logout(AController* Exiting) override;
 
 protected:
 
@@ -77,6 +79,24 @@ protected:
     UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Hide And Sink|Score")
     float CloseCallCooldown = 10.0f;
     
+    
+    UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Hide And Sink|Match",meta = (ClampMin = "1"))
+    int32 RoundsPerMatch = 3;
+
+    UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Hide And Sink|Match",meta = (ClampMin = "1.0"))
+    float RoundEndDuration = 8.0f;
+    
+    
+    ///
+    
+    
+    UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Hide And Sink|Spawn")
+    FName HunterPlayerStartTag = TEXT("Hunter");
+
+    UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Hide And Sink|Spawn")
+    FName OctopusPlayerStartTag = TEXT("Octopus");
+    
+    
 private:
     FTimerHandle RoundTimerHandle;
     FTimerHandle AutoStartTimerHandle;
@@ -101,6 +121,14 @@ private:
         LastCloseCallAwardTimes;
 
     void CheckCloseCallScores();
+    
+    FTimerHandle RoundEndTimerHandle;
+
+    void HandleRoundEndFinished();
+    void FinishMatch();
+    
+    
+    TSet<TWeakObjectPtr<AActor>> UsedRoundPlayerStarts;
     
 };
 

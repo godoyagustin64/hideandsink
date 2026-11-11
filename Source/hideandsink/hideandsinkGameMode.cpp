@@ -5,6 +5,8 @@
 #include "GameFramework/PlayerController.h"
 #include "HISHunterCharacter.h"
 #include "hideandsinkCharacter.h"
+#include "EngineUtils.h"
+#include "GameFramework/PlayerStart.h"
 #include "TimerManager.h"
 
 AhideandsinkGameMode::AhideandsinkGameMode()
@@ -80,16 +82,57 @@ void AhideandsinkGameMode::StartRound()
         return;
     }
 
-    if (GetNumPlayers() < MinimumPlayers)
+    const int32 ConnectedPlayerCount =
+    HISGameState->PlayerArray.Num();
+
+    if (ConnectedPlayerCount < MinimumPlayers)
     {
         UE_LOG(
             LogTemp,
             Warning,
-            TEXT("No hay suficientes jugadores para comenzar")
+            TEXT(
+                "No hay suficientes jugadores conectados. "
+                "Conectados: %d"
+            ),
+            ConnectedPlayerCount
         );
 
         return;
     }
+    
+    if (
+    HISGameState->GetCurrentRound() >=
+    RoundsPerMatch
+)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("Ya se jugaron todas las rondas")
+        );
+
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(
+        RoundEndTimerHandle
+    );
+
+    HISGameState->SetTotalRounds(RoundsPerMatch);
+
+    HISGameState->SetCurrentRound(
+        HISGameState->GetCurrentRound() + 1
+    );
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "COMENZANDO RONDA %d DE %d"
+        ),
+        HISGameState->GetCurrentRound(),
+        HISGameState->GetTotalRounds()
+    );
 
     GetWorldTimerManager().ClearTimer(RoundTimerHandle);
     GetWorldTimerManager().ClearTimer(AutoStartTimerHandle);
@@ -231,7 +274,7 @@ void AhideandsinkGameMode::HandleRoundTimerTick()
     AHISGameState* HISGameState = GetHISGameState();
 
     if (!HISGameState)
-    {+
+    {
         return;
     }
     if (
@@ -326,14 +369,28 @@ void AhideandsinkGameMode::RegisterOctopusCaught(
 
     if (OctopusController)
     {
-        APawn* CaughtPawn = OctopusController->GetPawn();
+        APawn* CaughtPawn =
+            OctopusController->GetPawn();
 
-        OctopusController->StartSpectatingOnly();
+        OctopusController->UnPossess();
 
         if (CaughtPawn)
         {
             CaughtPawn->Destroy();
         }
+        
+        OctopusController->ChangeState(
+            NAME_Spectating
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "%s pasó temporalmente a espectador"
+            ),
+            *OctopusPlayerState->GetPlayerName()
+        );
     }
 
     UE_LOG(
@@ -392,6 +449,8 @@ void AhideandsinkGameMode::EndRound(
     HISGameState->SetRemainingTime(0);
     HISGameState->SetRoundWinner(Winner);
     HISGameState->SetRoundPhase(EHISRoundPhase::Ended);
+    
+    
 
     UE_LOG(
         LogTemp,
@@ -401,6 +460,136 @@ void AhideandsinkGameMode::EndRound(
             ? TEXT("CAZADOR")
             : TEXT("PULPOS")
     );
+    
+    GetWorldTimerManager().SetTimer(
+    RoundEndTimerHandle,
+    this,
+    &AhideandsinkGameMode::HandleRoundEndFinished,
+    RoundEndDuration,
+    false
+);
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "La siguiente ronda comenzará en %.1f segundos"
+        ),
+        RoundEndDuration
+    );
+}
+
+void AhideandsinkGameMode::HandleRoundEndFinished()
+{
+    AHISGameState* HISGameState =
+        GetHISGameState();
+
+    if (!HISGameState)
+    {
+        return;
+    }
+    const int32 ConnectedPlayerCount =
+    HISGameState->PlayerArray.Num();
+
+    if (ConnectedPlayerCount < MinimumPlayers)
+    {
+        HISGameState->SetRoundPhase(
+            EHISRoundPhase::Waiting
+        );
+
+        HISGameState->SetRoundWinner(
+            EHISRoundWinner::None
+        );
+
+        HISGameState->SetRemainingTime(0);
+        HISGameState->SetAliveOctopusCount(0);
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "No hay suficientes jugadores. "
+                "La partida queda esperando."
+            )
+        );
+
+        return;
+    }
+
+    if (
+        HISGameState->GetCurrentRound() <
+        HISGameState->GetTotalRounds()
+    )
+    {
+        StartRound();
+        return;
+    }
+
+    FinishMatch();
+}
+
+void AhideandsinkGameMode::FinishMatch()
+{
+    AHISGameState* HISGameState =
+        GetHISGameState();
+
+    if (!HISGameState)
+    {
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(
+        RoundEndTimerHandle
+    );
+
+    AHISPlayerState* BestPlayer = nullptr;
+
+    for (
+        APlayerState* BasePlayerState :
+        HISGameState->PlayerArray
+    )
+    {
+        AHISPlayerState* HISPlayerState =
+            Cast<AHISPlayerState>(
+                BasePlayerState
+            );
+
+        if (!HISPlayerState)
+        {
+            continue;
+        }
+
+        if (
+            !BestPlayer ||
+            HISPlayerState->GetScorePoints() >
+            BestPlayer->GetScorePoints()
+        )
+        {
+            BestPlayer = HISPlayerState;
+        }
+    }
+
+    if (BestPlayer)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "PARTIDA TERMINADA | "
+                "GANADOR: %s | PUNTOS: %d"
+            ),
+            *BestPlayer->GetPlayerName(),
+            BestPlayer->GetScorePoints()
+        );
+    }
+    else
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("PARTIDA TERMINADA SIN GANADOR")
+        );
+    }
 }
 
 AHISGameState* AhideandsinkGameMode::GetHISGameState() const
@@ -455,6 +644,7 @@ AhideandsinkGameMode::GetDefaultPawnClassForController_Implementation(
 
 void AhideandsinkGameMode::RespawnPlayersForAssignedRoles()
 {
+    UsedRoundPlayerStarts.Empty();
     UWorld* World = GetWorld();
 
     if (!World)
@@ -477,6 +667,8 @@ void AhideandsinkGameMode::RespawnPlayersForAssignedRoles()
             continue;
         }
 
+        PlayerController->ChangeState(NAME_Playing);
+        
         APawn* PreviousPawn = PlayerController->GetPawn();
 
         if (PreviousPawn)
@@ -484,8 +676,40 @@ void AhideandsinkGameMode::RespawnPlayersForAssignedRoles()
             PlayerController->UnPossess();
             PreviousPawn->Destroy();
         }
+        
+        AHISPlayerState* HISPlayerState =
+    PlayerController->GetPlayerState<
+        AHISPlayerState
+    >();
 
-        RestartPlayer(PlayerController);
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "Respawn | Jugador: %s | Rol: %d"
+            ),
+            *GetNameSafe(PlayerController->PlayerState),
+            HISPlayerState
+                ? static_cast<int32>(
+                    HISPlayerState->GetPlayerRole()
+                )
+                : -1
+        );
+
+        AActor* SelectedPlayerStart =
+    ChoosePlayerStart(PlayerController);
+
+        if (SelectedPlayerStart)
+        {
+            RestartPlayerAtPlayerStart(
+                PlayerController,
+                SelectedPlayerStart
+            );
+        }
+        else
+        {
+            RestartPlayer(PlayerController);
+        }
     }
 }
 
@@ -635,12 +859,7 @@ void AhideandsinkGameMode::CheckCloseCallScores()
         {
             const bool bWasAlreadyNear =
                 OctopusesNearHunter.Contains(OctopusKey);
-
-            /*
-             * Lo marcamos como cercano aunque todavía no esté
-             * disfrazado. Así no puede transformarse junto al
-             * cazador para activar puntos artificialmente.
-             */
+            
             OctopusesNearHunter.Add(OctopusKey);
 
             if (bWasAlreadyNear)
@@ -690,11 +909,243 @@ void AhideandsinkGameMode::CheckCloseCallScores()
             DistanceSquared >= ResetDistanceSquared
         )
         {
-            /*
-             * El cazador se alejó lo suficiente.
-             * Una futura aproximación puede volver a puntuar.
-             */
             OctopusesNearHunter.Remove(OctopusKey);
+        }
+    }
+}
+
+
+AActor*
+AhideandsinkGameMode::ChoosePlayerStart_Implementation(
+    AController* Player
+)
+{
+    if (!Player)
+    {
+        return Super::ChoosePlayerStart_Implementation(
+            Player
+        );
+    }
+
+    const AHISPlayerState* HISPlayerState =
+        Player->GetPlayerState<AHISPlayerState>();
+
+    if (!HISPlayerState)
+    {
+        return Super::ChoosePlayerStart_Implementation(
+            Player
+        );
+    }
+
+    FName DesiredTag = NAME_None;
+
+    switch (HISPlayerState->GetPlayerRole())
+    {
+        case EHISPlayerRole::Hunter:
+            DesiredTag = HunterPlayerStartTag;
+            break;
+
+        case EHISPlayerRole::Octopus:
+            DesiredTag = OctopusPlayerStartTag;
+            break;
+
+        default:
+            return Super::ChoosePlayerStart_Implementation(
+                Player
+            );
+    }
+
+    TArray<APlayerStart*> AvailableStarts;
+    TArray<APlayerStart*> AllMatchingStarts;
+
+    for (
+        TActorIterator<APlayerStart> Iterator(GetWorld());
+        Iterator;
+        ++Iterator
+    )
+    {
+        APlayerStart* PlayerStart = *Iterator;
+
+        if (
+            !PlayerStart ||
+            PlayerStart->PlayerStartTag != DesiredTag
+        )
+        {
+            continue;
+        }
+
+        AllMatchingStarts.Add(PlayerStart);
+
+        if (
+            !UsedRoundPlayerStarts.Contains(PlayerStart)
+        )
+        {
+            AvailableStarts.Add(PlayerStart);
+        }
+    }
+
+    APlayerStart* SelectedStart = nullptr;
+
+    if (!AvailableStarts.IsEmpty())
+    {
+        const int32 RandomIndex =
+            FMath::RandRange(
+                0,
+                AvailableStarts.Num() - 1
+            );
+
+        SelectedStart = AvailableStarts[RandomIndex];
+    }
+    else if (!AllMatchingStarts.IsEmpty())
+    {
+        const int32 RandomIndex =
+            FMath::RandRange(
+                0,
+                AllMatchingStarts.Num() - 1
+            );
+
+        SelectedStart = AllMatchingStarts[RandomIndex];
+    }
+
+    if (SelectedStart)
+    {
+        UsedRoundPlayerStarts.Add(SelectedStart);
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "Spawn seleccionado | Jugador: %s | "
+                "Rol: %d | PlayerStart: %s"
+            ),
+            *GetNameSafe(Player->PlayerState),
+            static_cast<int32>(
+                HISPlayerState->GetPlayerRole()
+            ),
+            *SelectedStart->GetName()
+        );
+
+        return SelectedStart;
+    }
+
+    UE_LOG(
+        LogTemp,
+        Error,
+        TEXT(
+            "No se encontró PlayerStart con tag: %s"
+        ),
+        *DesiredTag.ToString()
+    );
+
+    return Super::ChoosePlayerStart_Implementation(
+        Player
+    );
+}
+
+
+void AhideandsinkGameMode::Logout(
+    AController* Exiting
+)
+{
+    AHISGameState* HISGameState =
+        GetHISGameState();
+
+    AHISPlayerState* LeavingPlayerState =
+        Exiting
+        ? Exiting->GetPlayerState<AHISPlayerState>()
+        : nullptr;
+
+    /*
+     * Guardamos los datos antes de llamar a Super,
+     * porque después el PlayerState será retirado
+     * del PlayerArray.
+     */
+    const EHISPlayerRole LeavingRole =
+        LeavingPlayerState
+        ? LeavingPlayerState->GetPlayerRole()
+        : EHISPlayerRole::None;
+
+    const bool bWasAlive =
+        LeavingPlayerState &&
+        LeavingPlayerState->IsAlive();
+
+    const FString LeavingPlayerName =
+        LeavingPlayerState
+        ? LeavingPlayerState->GetPlayerName()
+        : TEXT("Jugador desconocido");
+
+    Super::Logout(Exiting);
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "Jugador desconectado: %s | Rol: %d"
+        ),
+        *LeavingPlayerName,
+        static_cast<int32>(LeavingRole)
+    );
+
+    if (!HISGameState)
+    {
+        return;
+    }
+
+    const EHISRoundPhase CurrentPhase =
+        HISGameState->GetRoundPhase();
+
+    const bool bRoundInProgress =
+        CurrentPhase == EHISRoundPhase::Hiding ||
+        CurrentPhase == EHISRoundPhase::Hunting;
+
+    if (!bRoundInProgress)
+    {
+        return;
+    }
+
+    if (LeavingRole == EHISPlayerRole::Hunter)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "El cazador se desconectó. "
+                "Ganan los pulpos."
+            )
+        );
+
+        EndRound(EHISRoundWinner::Octopuses);
+        return;
+    }
+
+    if (
+        LeavingRole == EHISPlayerRole::Octopus &&
+        bWasAlive
+    )
+    {
+        const int32 NewAliveCount =
+            FMath::Max(
+                0,
+                HISGameState->GetAliveOctopusCount() - 1
+            );
+
+        HISGameState->SetAliveOctopusCount(
+            NewAliveCount
+        );
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "Un pulpo vivo se desconectó. "
+                "Pulpos restantes: %d"
+            ),
+            NewAliveCount
+        );
+
+        if (NewAliveCount <= 0)
+        {
+            EndRound(EHISRoundWinner::Hunter);
         }
     }
 }

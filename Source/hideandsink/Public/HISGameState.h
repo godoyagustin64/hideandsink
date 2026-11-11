@@ -4,6 +4,10 @@
 #include "GameFramework/GameStateBase.h"
 #include "HISGameState.generated.h"
 
+
+
+// FASES DE RONDA
+
 UENUM(BlueprintType)
 enum class EHISRoundPhase : uint8
 {
@@ -12,6 +16,9 @@ enum class EHISRoundPhase : uint8
     Hunting  UMETA(DisplayName = "Cacería"),
     Ended    UMETA(DisplayName = "Partida terminada")
 };
+
+
+// ROLES
 
 UENUM(BlueprintType)
 enum class EHISRoundWinner : uint8
@@ -28,6 +35,8 @@ class HIDEANDSINK_API AHISGameState : public AGameStateBase
 
 public:
     AHISGameState();
+    
+//GETTERS
 
     UFUNCTION(BlueprintPure, Category = "Hide And Sink|Round")
     EHISRoundPhase GetRoundPhase() const;
@@ -40,14 +49,29 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Hide And Sink|Round")
     EHISRoundWinner GetRoundWinner() const;
+    
+    UFUNCTION(BlueprintPure, Category = "Hide And Sink|Round")
+    int32 GetCurrentRound() const;
 
+    UFUNCTION(BlueprintPure, Category = "Hide And Sink|Round")
+    int32 GetTotalRounds() const;
 
+//SETTERS    
+    
     void SetRoundPhase(EHISRoundPhase NewPhase);
     void SetRemainingTime(int32 NewRemainingTime);
     void SetAliveOctopusCount(int32 NewCount);
     void SetRoundWinner(EHISRoundWinner NewWinner);
+    void SetCurrentRound(int32 NewCurrentRound);
+    void SetTotalRounds(int32 NewTotalRounds);    
+    
+    
+
+
+
 
 protected:
+    
     UPROPERTY(ReplicatedUsing = OnRep_RoundPhase, BlueprintReadOnly, Category = "Hide And Sink|Round")
     EHISRoundPhase RoundPhase = EHISRoundPhase::Waiting;
 
@@ -59,6 +83,12 @@ protected:
 
     UPROPERTY(ReplicatedUsing = OnRep_RoundWinner,BlueprintReadOnly,Category = "Hide And Sink|Round")
     EHISRoundWinner RoundWinner = EHISRoundWinner::None;
+    
+    UPROPERTY(Replicated,BlueprintReadOnly,Category = "Hide And Sink|Round")
+    int32 CurrentRound = 0;
+
+    UPROPERTY(Replicated,BlueprintReadOnly,Category = "Hide And Sink|Round")
+    int32 TotalRounds = 0;
 
     UFUNCTION()
     void OnRep_RoundPhase();

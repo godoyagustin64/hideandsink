@@ -6,6 +6,20 @@ AHISGameState::AHISGameState()
     bReplicates = true;
 }
 
+void AHISGameState::GetLifetimeReplicatedProps(
+    TArray<FLifetimeProperty>& OutLifetimeProps
+) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(AHISGameState, RoundPhase);
+    DOREPLIFETIME(AHISGameState, RemainingTime);
+    DOREPLIFETIME(AHISGameState, AliveOctopusCount);
+    DOREPLIFETIME(AHISGameState, RoundWinner);
+    DOREPLIFETIME(AHISGameState, CurrentRound);
+    DOREPLIFETIME(AHISGameState, TotalRounds);
+}
+
 EHISRoundPhase AHISGameState::GetRoundPhase() const
 {
     return RoundPhase;
@@ -24,6 +38,16 @@ int32 AHISGameState::GetAliveOctopusCount() const
 EHISRoundWinner AHISGameState::GetRoundWinner() const
 {
     return RoundWinner;
+}
+
+int32 AHISGameState::GetCurrentRound() const
+{
+    return CurrentRound;
+}
+
+int32 AHISGameState::GetTotalRounds() const
+{
+    return TotalRounds;
 }
 
 void AHISGameState::SetRoundPhase(EHISRoundPhase NewPhase)
@@ -68,6 +92,34 @@ void AHISGameState::SetRoundWinner(EHISRoundWinner NewWinner)
 
     RoundWinner = NewWinner;
     OnRep_RoundWinner();
+}
+
+void AHISGameState::SetCurrentRound(
+    int32 NewCurrentRound
+)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    CurrentRound = FMath::Max(0, NewCurrentRound);
+
+    ForceNetUpdate();
+}
+
+void AHISGameState::SetTotalRounds(
+    int32 NewTotalRounds
+)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    TotalRounds = FMath::Max(1, NewTotalRounds);
+
+    ForceNetUpdate();
 }
 
 void AHISGameState::OnRep_RoundPhase()
@@ -118,14 +170,8 @@ void AHISGameState::OnRep_RoundWinner()
     OnRoundWinnerUpdated(RoundWinner);
 }
 
-void AHISGameState::GetLifetimeReplicatedProps(
-    TArray<FLifetimeProperty>& OutLifetimeProps
-) const
-{
-    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-    DOREPLIFETIME(AHISGameState, RoundPhase);
-    DOREPLIFETIME(AHISGameState, RemainingTime);
-    DOREPLIFETIME(AHISGameState, AliveOctopusCount);
-    DOREPLIFETIME(AHISGameState, RoundWinner);
-}
+
+
+
+
