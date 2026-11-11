@@ -25,6 +25,7 @@ UCLASS(abstract)
 class AhideandsinkCharacter : public ACharacter
 {
 	GENERATED_BODY()
+	
 
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
@@ -94,6 +95,9 @@ public:
 	virtual void PawnClientRestart() override;
 	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	
+	UFUNCTION(BlueprintPure, Category = "Transformacion")
+	bool IsDisguised() const;
 
 protected:
 

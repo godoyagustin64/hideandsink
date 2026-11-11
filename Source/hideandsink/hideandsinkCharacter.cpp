@@ -27,8 +27,15 @@ AhideandsinkCharacter::AhideandsinkCharacter()
 	bReplicates = true;
 	PrimaryActorTick.bCanEverTick = true;
 	
+	
+	
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(
+	ECC_Visibility,
+	ECR_Block
+);
+	
 		
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
@@ -411,6 +418,15 @@ void AhideandsinkCharacter::ApplyDisguise()
             -GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()
         )
     );
+	DisguiseMesh->SetCollisionEnabled(
+	ECollisionEnabled::QueryOnly);
+
+	DisguiseMesh->SetCollisionResponseToAllChannels(
+		ECR_Ignore);
+
+	DisguiseMesh->SetCollisionResponseToChannel(
+		ECC_Visibility,
+		ECR_Block);
 
     DisguiseMesh->SetVisibility(true);
 	DisguiseMesh->SetRelativeRotation(DisguiseRotation);
@@ -492,4 +508,9 @@ void AhideandsinkCharacter::ServerReturnToOctopus_Implementation()
 
 	DisguiseProp = nullptr;
 	ApplyDisguise();
+}
+
+bool AhideandsinkCharacter::IsDisguised() const
+{
+	return IsValid(DisguiseProp);
 }
