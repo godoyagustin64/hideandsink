@@ -32,6 +32,8 @@ public:
     virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
     
     virtual void Logout(AController* Exiting) override;
+    
+    virtual void HandleSeamlessTravelPlayer(AController*& Controller) override;
 
 protected:
 
@@ -129,6 +131,8 @@ private:
     
     
     TSet<TWeakObjectPtr<AActor>> UsedRoundPlayerStarts;
+    
+    void TryStartRoundAfterSeamlessTravel();
     
 };
 

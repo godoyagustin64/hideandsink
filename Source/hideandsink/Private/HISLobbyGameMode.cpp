@@ -4,18 +4,11 @@
 
 AHISLobbyGameMode::AHISLobbyGameMode()
 {
-	/*
-	 * En el Lobby no necesitamos crear los personajes
-	 * jugables todavía.
-	 */
+
 	DefaultPawnClass = nullptr;
 	bStartPlayersAsSpectators = true;
 
-	/*
-	 * Al viajar al mapa jugable se crearán nuevamente
-	 * los Controllers y aparecerá el HUD de la partida.
-	 */
-	bUseSeamlessTravel = false;
+	bUseSeamlessTravel = true;
 }
 
 void AHISLobbyGameMode::StartGame()

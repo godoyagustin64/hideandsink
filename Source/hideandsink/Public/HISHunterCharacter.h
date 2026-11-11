@@ -6,6 +6,8 @@
 
 class UInputAction;
 class UInputMappingContext;
+class AHISHarpoonProjectile;
+class USoundBase;
 
 UCLASS()
 class HIDEANDSINK_API AHISHunterCharacter : public ACombatCharacter
@@ -48,16 +50,32 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Hide And Sink|Debug")
 	bool bDrawHarpoonDebug = true;
+	
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Hide and Sink|Harpoon")
+	TSubclassOf<AHISHarpoonProjectile> HarpoonProjectileClass;
+
+	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category = "Hide and Sink|Harpoon")
+	float HarpoonProjectileSpeed = 5000.0f;
+
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Hide and Sink|Harpoon")
+	TObjectPtr<USoundBase> HarpoonFireSound;
 
 	virtual void SetupPlayerInputComponent(
 		UInputComponent* PlayerInputComponent
 	) override;
 
 	void FireHarpoon();
+	
+	void SpawnHarpoonProjectile(const FVector& SpawnLocation,const FVector& TargetLocation);
 
 	UFUNCTION(Server, Reliable)
 	void ServerFireHarpoon();
 
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayHarpoonEffects(
+		FVector ShotLocation
+	);
+	
 private:
 	void ApplyHunterReleasedState();
 	

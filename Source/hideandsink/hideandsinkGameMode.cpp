@@ -1149,3 +1149,97 @@ void AhideandsinkGameMode::Logout(
         }
     }
 }
+
+void AhideandsinkGameMode::HandleSeamlessTravelPlayer(
+    AController*& Controller
+)
+{
+    Super::HandleSeamlessTravelPlayer(Controller);
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "Jugador recibido mediante Seamless Travel: %s"
+        ),
+        *GetNameSafe(Controller)
+    );
+
+    if (!bAutoStartRound)
+    {
+        return;
+    }
+
+    /*
+     * HandleSeamlessTravelPlayer se ejecuta una vez por jugador.
+     * Programamos un único chequeo.
+     */
+    if (
+        !GetWorldTimerManager().IsTimerActive(
+            AutoStartTimerHandle
+        )
+    )
+    {
+        GetWorldTimerManager().SetTimer(
+            AutoStartTimerHandle,
+            this,
+            &AhideandsinkGameMode::
+                TryStartRoundAfterSeamlessTravel,
+            AutoStartDelay,
+            false
+        );
+    }
+}
+
+void AhideandsinkGameMode::
+TryStartRoundAfterSeamlessTravel()
+{
+    AHISGameState* HISGameState =
+        GetHISGameState();
+
+    if (!HISGameState)
+    {
+        return;
+    }
+
+    const int32 ConnectedPlayerCount =
+        HISGameState->PlayerArray.Num();
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT(
+            "Chequeo después de Seamless Travel | "
+            "Jugadores: %d/%d"
+        ),
+        ConnectedPlayerCount,
+        MinimumPlayers
+    );
+
+    if (
+        ConnectedPlayerCount < MinimumPlayers
+    )
+    {
+
+        GetWorldTimerManager().SetTimer(
+            AutoStartTimerHandle,
+            this,
+            &AhideandsinkGameMode::
+                TryStartRoundAfterSeamlessTravel,
+            1.0f,
+            false
+        );
+
+        return;
+    }
+
+    if (
+        HISGameState->GetRoundPhase() !=
+        EHISRoundPhase::Waiting
+    )
+    {
+        return;
+    }
+
+    StartRound();
+}

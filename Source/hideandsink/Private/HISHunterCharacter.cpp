@@ -5,11 +5,13 @@
 #include "HISGameState.h"
 #include "HISPlayerState.h"
 #include "hideandsinkGameMode.h"
-
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "InputAction.h"
+#include "HISHarpoonProjectile.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "Net/UnrealNetwork.h"
 
 AHISHunterCharacter::AHISHunterCharacter()
@@ -34,11 +36,7 @@ void AHISHunterCharacter::SetHunterReleased(
 	}
 
 	bHunterReleased = bNewReleased;
-
-	/*
-	 * Ejecutamos la actualización manualmente en el servidor.
-	 * En los clientes se ejecutará mediante OnRep.
-	 */
+    
 	ApplyHunterReleasedState();
 
 	ForceNetUpdate();
@@ -217,6 +215,86 @@ void AHISHunterCharacter::ServerFireHarpoon_Implementation()
     PerformHarpoonTrace();
 }
 
+void AHISHunterCharacter::SpawnHarpoonProjectile(
+    const FVector& SpawnLocation,
+    const FVector& TargetLocation
+)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    if (!HarpoonProjectileClass)
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("No se asignó HarpoonProjectileClass en el BP del cazador")
+        );
+
+        return;
+    }
+
+    UWorld* World = GetWorld();
+
+    if (!World)
+    {
+        return;
+    }
+
+    const FVector ShotDirection =
+        (TargetLocation - SpawnLocation).GetSafeNormal();
+
+    const FRotator SpawnRotation =
+        ShotDirection.Rotation();
+
+    FActorSpawnParameters SpawnParameters;
+    SpawnParameters.Owner = this;
+    SpawnParameters.Instigator = this;
+    SpawnParameters.SpawnCollisionHandlingOverride =
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    AHISHarpoonProjectile* HarpoonProjectile =
+        World->SpawnActor<AHISHarpoonProjectile>(
+            HarpoonProjectileClass,
+            SpawnLocation,
+            SpawnRotation,
+            SpawnParameters
+        );
+
+    if (!HarpoonProjectile)
+    {
+        return;
+    }
+
+    HarpoonProjectile->InitializeHarpoon(
+        ShotDirection,
+        HarpoonProjectileSpeed
+    );
+}
+
+
+void AHISHunterCharacter::MulticastPlayHarpoonEffects_Implementation(
+    FVector ShotLocation
+)
+{
+    if (HarpoonFireSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(
+            this,
+            HarpoonFireSound,
+            ShotLocation
+        );
+    }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("NetMulticast: reproduciendo sonido del arpón")
+    );
+}
+
 void AHISHunterCharacter::PerformHarpoonTrace()
 {
     UWorld* World = GetWorld();
@@ -259,52 +337,35 @@ void AHISHunterCharacter::PerformHarpoonTrace()
         QueryParams
     );
 
-    const FVector DebugEnd =
+    const FVector FinalTraceEnd =
         bHit ? HitResult.ImpactPoint : TraceEnd;
+    
+    SpawnHarpoonProjectile(
+        TraceStart,
+        FinalTraceEnd
+    );
 
-    if (bDrawHarpoonDebug)
+    MulticastPlayHarpoonEffects(
+        TraceStart
+    );
+
+    if (bHit)
     {
-        DrawDebugLine(
-            World,
-            TraceStart,
-            DebugEnd,
-            bHit ? FColor::Green : FColor::Red,
-            false,
-            2.0f,
-            0,
-            2.0f
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("Arpón golpeó Actor: %s | Componente: %s"),
+            *GetNameSafe(HitResult.GetActor()),
+            *GetNameSafe(HitResult.GetComponent())
         );
-
-        if (bHit)
-        {
-            DrawDebugSphere(
-                World,
-                HitResult.ImpactPoint,
-                12.0f,
-                12,
-                FColor::Yellow,
-                false,
-                2.0f
-            );
-        }
-        if (bHit)
-        {
-            UE_LOG(
-                LogTemp,
-                Warning,
-                TEXT("Arpón golpeó Actor: %s | Componente: %s"),
-                *GetNameSafe(HitResult.GetActor()),
-                *GetNameSafe(HitResult.GetComponent())
-            );
-        }
-        else
-        {
-            UE_LOG(
-                LogTemp,
-                Warning,
-                TEXT("El arpón no golpeó nada")
-            );
-        }
+    }
+    else
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("El arpón no golpeó nada")
+        );
     }
 
     if (!bHit)
@@ -321,7 +382,7 @@ void AHISHunterCharacter::PerformHarpoonTrace()
         UE_LOG(
             LogTemp,
             Log,
-            TEXT("El arpón golpeó: %s"),
+            TEXT("El arpón golpeó algo que no es un Pawn: %s"),
             *GetNameSafe(HitResult.GetActor())
         );
 
