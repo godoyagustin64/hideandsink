@@ -13,7 +13,6 @@ Pulpos:
 W A S D para moverse, mouse para mover cámara, E para transformarse, Q para volver a pulpo, mantener Click derecho + WASD para rotar el prop convertido. 
 Cazador: 
 W A S D para moverse, mouse para apuntar, click izquierdo para disparar (3 seg cooldown). 
-
 Ambos: Escape para menú de pausa. 
 ---
 ## Ficha Técnica de Red
