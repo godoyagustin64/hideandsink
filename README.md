@@ -13,8 +13,7 @@ la fase de ronda entre Waiting, Hiding, Hunting y Ended; RemainingTime actualiza
 RoundWinner actualiza el ganador entre nadie, cazador y pulpos. Cuando se modifican estos valores desde el servidor, se replica a todos los clientes. 
 - **Server RPC:** `ServerTryTransform` en `AhideandsinkCharacter` -> El servidor valida que el cliente que lo haya pedido tenga el rol Octopus para hacer la modificacion del DisguiseProp.
 - **Client RPC:** `ClientNotifyCaught()` en `hideandsinkCharacter.h` -> el servidor lo llama desde hideandsinkGameMode.cpp en RegisterOctopusCaught(), pero se ejecuta en el cliente propietario de ese personaje.
-- **NetMulticast RPC:** `MulticastPlayHarpoonEffects()` en `Podés completarlo así:
-- NetMulticast RPC: MulticastPlayHarpoonEffects() en AHISHunterCharacter` -> VFX Global del arpón, reproducido en el host y en todos los clientes conectados
+- **NetMulticast RPC:** `MulticastPlayHarpoonEffects()` en `AHISHunterCharacter` -> VFX Global del arpón, reproducido en el host y en todos los clientes conectados
 con un attenuator para que se escuche mas despacio a la distancia.
 ---
 ## Cómo Probar el Proyecto
