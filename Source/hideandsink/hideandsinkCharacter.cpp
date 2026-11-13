@@ -514,3 +514,40 @@ bool AhideandsinkCharacter::IsDisguised() const
 {
 	return IsValid(DisguiseProp);
 }
+
+void AhideandsinkCharacter::
+ClientNotifyCaught_Implementation()
+{
+	if (!CaughtWidgetClass)
+	{
+		return;
+	}
+
+	APlayerController* LocalPlayerController =
+		Cast<APlayerController>(
+			GetController()
+		);
+
+	if (!LocalPlayerController)
+	{
+		return;
+	}
+
+	if (!LocalPlayerController->IsLocalController())
+	{
+		return;
+	}
+
+	UUserWidget* CaughtWidget =
+		CreateWidget<UUserWidget>(
+			LocalPlayerController,
+			CaughtWidgetClass
+		);
+
+	if (!CaughtWidget)
+	{
+		return;
+	}
+
+	CaughtWidget->AddToViewport(100);
+}

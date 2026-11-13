@@ -13,6 +13,7 @@ class UCameraComponent;
 class UInputAction;
 class ATransformableProp;
 class UStaticMeshComponent;
+class UUserWidget;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -124,6 +125,9 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_DisguiseRotation)
 	FRotator DisguiseRotation = FRotator::ZeroRotator;
+	
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly,Category = "Interfaz")
+	TSubclassOf<UUserWidget> CaughtWidgetClass;
 
 	UFUNCTION()
 	void OnRep_DisguiseRotation();
@@ -138,6 +142,8 @@ protected:
 	
 	UFUNCTION(Server, Reliable)
 	void ServerReturnToOctopus();
+	
+
 	
 
 public:
@@ -161,6 +167,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void TryTransform();
 	
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyCaught();
+	
 	ATransformableProp* FindTransformableProp() const;
 	
 	
@@ -179,6 +188,8 @@ public:
 
 	UPROPERTY(ReplicatedUsing = OnRep_DisguiseProp)
 	TObjectPtr<ATransformableProp> DisguiseProp;
+	
+
 
 public:
 

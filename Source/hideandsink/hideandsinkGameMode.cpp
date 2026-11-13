@@ -315,7 +315,14 @@ void AhideandsinkGameMode::RegisterOctopusCaught(
     AHISPlayerState* OctopusPlayerState
 )
 {
-    AHISGameState* HISGameState = GetHISGameState();
+
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    AHISGameState* HISGameState =
+        GetHISGameState();
 
     if (
         !HISGameState ||
@@ -325,7 +332,7 @@ void AhideandsinkGameMode::RegisterOctopusCaught(
     {
         return;
     }
-
+    
     if (
         HISGameState->GetRoundPhase() !=
         EHISRoundPhase::Hunting
@@ -349,36 +356,61 @@ void AhideandsinkGameMode::RegisterOctopusCaught(
     {
         return;
     }
-
+    
     if (!OctopusPlayerState->IsAlive())
     {
         return;
     }
-
+    
     OctopusPlayerState->SetAlive(false);
-    HunterPlayerState->AddScorePoints(PointsPerCapture);
+
+    HunterPlayerState->AddScorePoints(
+        PointsPerCapture
+    );
 
     const int32 NewAliveCount =
         HISGameState->GetAliveOctopusCount() - 1;
 
-    HISGameState->SetAliveOctopusCount(NewAliveCount);
-    APlayerController* OctopusController =
-    Cast<APlayerController>(
-        OctopusPlayerState->GetOwner()
+    HISGameState->SetAliveOctopusCount(
+        NewAliveCount
     );
+
+    APlayerController* OctopusController =
+        Cast<APlayerController>(
+            OctopusPlayerState->GetOwner()
+        );
 
     if (OctopusController)
     {
+
         APawn* CaughtPawn =
             OctopusController->GetPawn();
+        
+        AhideandsinkCharacter* OctopusCharacter =
+            Cast<AhideandsinkCharacter>(
+                CaughtPawn
+            );
 
+        if (OctopusCharacter)
+        {
+            OctopusCharacter->ClientNotifyCaught();
+
+            UE_LOG(
+                LogTemp,
+                Warning,
+                TEXT(
+                    "Servidor envió ClientNotifyCaught a %s"
+                ),
+                *OctopusPlayerState->GetPlayerName()
+            );
+        }
         OctopusController->UnPossess();
 
         if (CaughtPawn)
         {
             CaughtPawn->Destroy();
         }
-        
+
         OctopusController->ChangeState(
             NAME_Spectating
         );
@@ -403,7 +435,9 @@ void AhideandsinkGameMode::RegisterOctopusCaught(
 
     if (NewAliveCount <= 0)
     {
-        EndRound(EHISRoundWinner::Hunter);
+        EndRound(
+            EHISRoundWinner::Hunter
+        );
     }
 }
 
