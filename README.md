@@ -7,6 +7,14 @@ aleatorio es el cazador, teniendo que buscar y dispararle a los pulpos antes que
 - **Cómo se gana:** El cazador debe matar a todos los pulpos, y gana 100 puntos por pulpo que encontró. Los pulpos deben permanecer vivos toda la ronda para ganar 100 puntos,
 y ganan 15 puntos más cada vez que el cazador les pasa cerca sin encontrarlos. Se juegan 3 rondas y el ganador es quien tenga mas puntos al final. La idea en caso de continuar el proyecto,
 es hacer que en el lobby se pueda configurar la cantidad de rondas, el tiempo de rondas, tiempo para esconderse. 
+
+- **Controles:** 
+Pulpos: 
+W A S D para moverse, mouse para mover cámara, E para transformarse, Q para volver a pulpo, mantener Click derecho + WASD para rotar el prop convertido. 
+Cazador: 
+W A S D para moverse, mouse para apuntar, click izquierdo para disparar (3 seg cooldown). 
+
+Ambos: Escape para menú de pausa. 
 ---
 ## Ficha Técnica de Red
 - **RepNotify:** `RoundPhase`, `RoundWinner`, `RemainingTime`, `AliveOctopusCount` en `HISGameState` -> Como los nombres indican, RoundPhase en el Gamestate actualiza
